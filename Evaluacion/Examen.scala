@@ -2,8 +2,8 @@ import org.apache.spark.ml.classification.MultilayerPerceptronClassifier
 import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
 import org.apache.spark.ml.Pipeline
 import org.apache.spark.ml.feature.VectorAssembler
-import org.apache.spark.sql.types._
 import org.apache.spark.ml.feature.StringIndexer
+import org.apache.spark.sql.types._
 //Columnas de datos
 val structtype = StructType(StructField("c0", DoubleType, true) ::StructField("c1", DoubleType, true) ::StructField("c2", DoubleType, true) ::StructField("c3",DoubleType, true) ::StructField("c4", StringType, true) :: Nil)
 //Carga del dataset
@@ -18,7 +18,7 @@ val splits = dfstruct.randomSplit(Array(0.7, 0.3), seed = 1234L)
 val train = splits(0) 
 //Val de pruebas
 val test = splits(1)
-//Especificamos las capas de nuestra red neuronal 4 neuronas de entrada, dos capas internasy 3 de salida
+//Especificamos las capas de nuestra red neuronal 4 neuronas de entrada, dos capas internas ocultas y 3 de salida
 val layers = Array[Int](4, 5, 3, 3)
 //Se crea el tester y se especifican los parametros. La propiedad "setLayers" carga las capas de la red neuronal y la pripiedad "setMaxIter" indica el numero maximo de iteraciones 
 val trainer = new MultilayerPerceptronClassifier().setLayers(layers).setLabelCol("label").setFeaturesCol("features").setPredictionCol("prediction").setBlockSize(128).setSeed(1234L).setMaxIter(100)
