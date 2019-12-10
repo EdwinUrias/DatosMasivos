@@ -24,6 +24,7 @@ Steps 2 and 3 are repeated until the positions of the centroids no longer move.
 
 
 
+```scala
 //Las fuente de datos se encuentra en el repositorio: https://github.com/jcromerohdz/BigData/blob/master/Spark_clustering/Wholesalecustomersdata.csv
 
 //1. Importar una simple sesión Spark.
@@ -68,7 +69,7 @@ println(s"Within Set Sum of Squared Errors = $WSSSE")
 //12. ¿Cuáles son los nombres de las columnas?
 println("Cluster Centers: ")
 model.clusterCenters.foreach(println)
-
+```
 scala> :load Evaluacion.scala
 
 Loading Evaluacion.scala...
