@@ -2,27 +2,6 @@
 
 ## CODE
 ```scala
-//Contenido del proyecto
-//1.- Objectivo: Comparacion del rendimiento siguientes algoritmos de machine learning
-// - SVM
-// - Decision Three
-// - Logistic Regresion
-// - Multilayer perceptron
-//Con el siguiente data set: https://archive.ics.uci.edu/ml/datasets/Bank+Marketing 
-
-// Contenido del documento de proyecto final
-// 1. Portada
-// 2. Indice
-// 3. Introduccion
-// 4. Marco teorico de los algoritmos
-// 5. Implementacion (Que herramientas usaron y porque (en este caso spark con scala))
-// 6. Resultados (Un tabular con los datos por cada algoritmo para ver su preformance)
-//    y su respectiva explicacion.
-// 7. Conclusiones
-// 8. Referencias (No wikipedia por ningun motivo, traten que sean de articulos cientificos)
-//    El documento debe estar referenciado 
-
-// Nota: si el documento no es presentado , no revisare su desarrollo del proyecto
 //////////////////////////////////////////////////////SETUP//////////////////////////////////////////////////////////////////
 //Importamos las librerias necesarias con las que vamos a trabajar
 import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
@@ -53,30 +32,37 @@ val spark = SparkSession.builder().getOrCreate()
 val df = spark.read.option("header","true").option("inferSchema","true").option("delimiter",";").format("csv").load("bank-full.csv")
 //IMPRIMIMOS LOS TIPOS DE DATOS
 df.printSchema()
-df.show(1)
+df.show(10)
 //CAMBIAMOS COLUMNA POR UNA DE DATOS BINARIOS
 val change1 = df.withColumn("y",when(col("y").equalTo("yes"),1).otherwise(col("y")))
 val change2 = change1.withColumn("y",when(col("y").equalTo("no"),2).otherwise(col("y")))
 val newcolumn = change2.withColumn("y",'y.cast("Int"))
 //MOSTRAMOS LA NUEVA COLUMNA
-newcolumn.show(1)
+newcolumn.show(10)
 //CREAMOS LA TABLA FEATURES
 val assembler = new VectorAssembler().setInputCols(Array("balance","day","duration","pdays","previous")).setOutputCol("features")
-val fea = assembler.transform(newcolumn)
+val ft = assembler.transform(newcolumn)
 //MOSTRAMOS LA TABLA FEATURES
-fea.show(1)
-//Cambiamos la columna y a la columna label
-val cambio = fea.withColumnRenamed("y", "label")
+ft.show(10)
+//SE CAMBIA LA COLUMNA Y LA COLUMNA LABEL
+val cambio = ft.withColumnRenamed("y", "label")
 val feat = cambio.select("label","features")
-feat.show(1)
-
+feat.show(10)
+/////////////////////////////////////////////////SUPORT VECTOR MACHINE///////////////////////////////////////////////////////////////////////////////
+//SVM
+val cambio1 = feat.withColumn("label",when(col("label").equalTo("1"),0).otherwise(col("label")))
+val cambio2 = cambio1.withColumn("label",when(col("label").equalTo("2"),1).otherwise(col("label")))
+val cambio3 = cambio2.withColumn("label",'label.cast("Int"))
+val linsvc = new LinearSVC().setMaxIter(10).setRegParam(0.2)
+// FIT DEL MODELO
+val linsvcModel = linsvc.fit(cambio3)
 //////////////////////////////////////////////////////DECISION TREE////////////////////////////////////////////////////////////////////////////
 //DECISION TREE
 val labelIndexer = new StringIndexer().setInputCol("label").setOutputCol("indexedLabel").fit(feat)
 //FEATURES CON MAS DE 4 VALORES DISTINTIVOS TOMADOS COMO CONTINUOS
 val featureIndexer = new VectorIndexer().setInputCol("features").setOutputCol("indexedFeatures").setMaxCategories(4) 
-//70 PORCIENDO DE DATOS PARA ENTRETAR Y LOS OTROS 30 PORCIENTO PARA PRUEVAS
-val Array(trainingData, testData) = feat.randomSplit(Array(0.7, 0.3))
+//80% DE DATOS PARA ENTRETAR Y LOS OTROS 20% PARA PRUEVAS
+val Array(trainingData, testData) = feat.randomSplit(Array(0.8, 0.2))
 //CREA EL OBJETO DECISION TREE
 val dt = new DecisionTreeClassifier().setLabelCol("indexedLabel").setFeaturesCol("indexedFeatures")
 //RAMA PARA PREDICCION
@@ -88,30 +74,30 @@ val model = pipeline.fit(trainingData)
 //TTRANSFORMACION DEL MODELO PARA LOS DATOS DE ENTRENAMIENTO
 val predictions = model.transform(testData)
 //DESPLEGAMOS LAS PREDICCIONES
-predictions.select("predictedLabel", "label", "features").show(5)
+predictions.select("predictedLabel", "label", "features").show(10)
 //EVALUACION DE LA EXACTITUD
 val evaluator = new MulticlassClassificationEvaluator().setLabelCol("indexedLabel").setPredictionCol("prediction").setMetricName("accuracy")
 val accuracy = evaluator.evaluate(predictions)
 val treeModel = model.stages(2).asInstanceOf[DecisionTreeClassificationModel]
-
+println(s"Learned classification tree model:\n ${treeModel.toDebugString}")
 ///////////////////////////////////////////////////////LOGISTIC REGRESION//////////////////////////////////////////////////////////////////////////////////////
 //Logistic Regresion
-val logistic = new LogisticRegression().setMaxIter(10).setRegParam(0.3).setElasticNetParam(0.8)
+val logistic = new LogisticRegression().setMaxIter(5).setRegParam(0.2).setElasticNetParam(0.8)
 // Fit del modelo
 val logisticModel = logistic.fit(feat)
 //Impresion de los coegicientes y de la intercepcion
 println(s"Coefficients: ${logisticModel.coefficients} Intercept: ${logisticModel.intercept}")
-val logisticMult = new LogisticRegression().setMaxIter(10).setRegParam(0.3).setElasticNetParam(0.8).setFamily("multinomial")
+val logisticMult = new LogisticReg
+ression().setMaxIter(5).setRegParam(0.2).setElasticNetParam(0.8).setFamily("multinomial")
 val logisticMultModel = logisticMult.fit(feat)
-
 //////////////////////////////////////////////////////MULTILAYER PERCEPTRON///////////////////////////////////////////////////////////////////////////////////
-//MULTILAYER PERCEPTRON DIVIDIMOS LOS DATOS EN PARTES DE 60 Y 40 PORCIENTO RESPECTIVAMENTE
-val split = feat.randomSplit(Array(0.6, 0.4), seed = 1234L)
+//MULTILAYER PERCEPTRON DIVIDIMOS LOS DATOS EN PARTES DE 80 Y 20 PORCIENTO RESPECTIVAMENTE
+val split = feat.randomSplit(Array(0.8, 0.2), seed = 1234L)
 val train = split(0)
 val test = split(1) 
-//ESPECIFICAMOS LAS CAPAS PARA LA RED NEURONAL DE 5 ENTRADAS POR EL NUMERO DE DATOS DE LOS FEATURES 2 CAPAS OCULTAS DE 2 NEURONAS
+//ESPECIFICAMOS LAS CAPAS PARA LA RED NEURONAL DE 5 ENTRADAS POR EL NUMERO DE DATOS DE LOS FEATURES 4 CAPAS OCULTAS DE 5 NEURONAS
 // Y LA SALIDA DE 4 POR QUE ASI LO MARCA LAS CLASES
-val layers = Array[Int](5, 2, 2, 4)
+val layers = Array[Int](5, 4, 5, 4)
 //CREAMOS CONTENEDOR CON SOS PARAMETROS
 val trainer = new MultilayerPerceptronClassifier().setLayers(layers).setBlockSize(128).setSeed(1234L).setMaxIter(100)
 //ENTRENAMOS EL MODELO
@@ -120,24 +106,22 @@ val model = trainer.fit(train)
 val result = model.transform(test)
 val predictionAndLabels = result.select("prediction", "label")
 val evaluator = new MulticlassClassificationEvaluator().setMetricName("accuracy")
-
-/////////////////////////////////////////////////SUPORT VECTOR MACHINE///////////////////////////////////////////////////////////////////////////////
-//SVM
-val c1 = feat.withColumn("label",when(col("label").equalTo("1"),0).otherwise(col("label")))
-val c2 = c1.withColumn("label",when(col("label").equalTo("2"),1).otherwise(col("label")))
-val c3 = c2.withColumn("label",'label.cast("Int"))
-val linsvc = new LinearSVC().setMaxIter(10).setRegParam(0.1)
-// FIT DEL MODELO
-val linsvcModel = linsvc.fit(c3)
-
-//////////////////////////////////////////////RESULTADOS////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////RESULTADOS/////////////////////////////////////////////////////////////////////////
+//
+println(s"")
+println(s"")
+println(s"/////////////////////////////////////////////////////////////////////")
+println(s"SUPORT VECTOR MACHINE")
+println(s"/////////////////////////////////////////////////////////////////////")
+println(s"Coefficients: ${linsvcModel.coefficients} Intercept: ${linsvcModel.intercept}")
+//
 println(s"")
 println(s"")
 println(s"/////////////////////////////////////////////////////////////////////")
 println(s"RESULTADOS DECISION TREE")
 println(s"/////////////////////////////////////////////////////////////////////")
 println(s"Test Error = ${(1.0 - accuracy)}")
-println(s"Learned classification tree model:\n ${treeModel.toDebugString}")
+val accuracy = evaluator.evaluate(predictions)
 //
 println(s"")
 println(s"")
@@ -153,13 +137,6 @@ println(s"/////////////////////////////////////////////////////////////////////"
 println(s"RESULTADOS MULTILAYER PERCEPTRON")
 println(s"/////////////////////////////////////////////////////////////////////")
 println(s"Test set accuracy = ${evaluator.evaluate(predictionAndLabels)}")
-//
-println(s"")
-println(s"")
-println(s"/////////////////////////////////////////////////////////////////////")
-println(s"SUPORT VECTOR MACHINE")
-println(s"/////////////////////////////////////////////////////////////////////")
-println(s"Coefficients: ${linsvcModel.coefficients} Intercept: ${linsvcModel.intercept}")
 ```
 ## VALOR
 
@@ -187,7 +164,7 @@ import org.apache.spark.mllib.classification.{SVMModel, SVMWithSGD}
 import org.apache.spark.ml.classification.LinearSVC
 import org.apache.spark.ml.classification.LogisticRegression
 import org.apache.spark.ml.classification.MultilayerPerceptronClassifier
-spark: org.apache.spark.sql.SparkSession = org.apache.spark.sql.SparkSession@64a74723
+spark: org.apache.spark.sql.SparkSession = org.apache.spark.sql.SparkSession@18a9e8db
 df: org.apache.spark.sql.DataFrame = [age: int, job: string ... 15 more fields]
 root
  |-- age: integer (nullable = true)
@@ -208,31 +185,58 @@ root
  |-- poutcome: string (nullable = true)
  |-- y: string (nullable = true)
 
-+---+----------+-------+---------+-------+-------+-------+----+-------+---+-----+--------+--------+-----+--------+--------+---+
-|age|       job|marital|education|default|balance|housing|loan|contact|day|month|duration|campaign|pdays|previous|poutcome|  y|
-+---+----------+-------+---------+-------+-------+-------+----+-------+---+-----+--------+--------+-----+--------+--------+---+
-| 58|management|married| tertiary|     no|   2143|    yes|  no|unknown|  5|  may|     261|       1|   -1|       0| unknown| no|
-+---+----------+-------+---------+-------+-------+-------+----+-------+---+-----+--------+--------+-----+--------+--------+---+
-only showing top 1 row
++---+------------+--------+---------+-------+-------+-------+----+-------+---+-----+--------+--------+-----+--------+--------+---+
+|age|         job| marital|education|default|balance|housing|loan|contact|day|month|duration|campaign|pdays|previous|poutcome|  y|
++---+------------+--------+---------+-------+-------+-------+----+-------+---+-----+--------+--------+-----+--------+--------+---+
+| 58|  management| married| tertiary|     no|   2143|    yes|  no|unknown|  5|  may|     261|       1|   -1|       0| unknown| no|
+| 44|  technician|  single|secondary|     no|     29|    yes|  no|unknown|  5|  may|     151|       1|   -1|       0| unknown| no|
+| 33|entrepreneur| married|secondary|     no|      2|    yes| yes|unknown|  5|  may|      76|       1|   -1|       0| unknown| no|
+| 47| blue-collar| married|  unknown|     no|   1506|    yes|  no|unknown|  5|  may|      92|       1|   -1|       0| unknown| no|
+| 33|     unknown|  single|  unknown|     no|      1|     no|  no|unknown|  5|  may|     198|       1|   -1|       0| unknown| no|
+| 35|  management| married| tertiary|     no|    231|    yes|  no|unknown|  5|  may|     139|       1|   -1|       0| unknown| no|
+| 28|  management|  single| tertiary|     no|    447|    yes| yes|unknown|  5|  may|     217|       1|   -1|       0| unknown| no|
+| 42|entrepreneur|divorced| tertiary|    yes|      2|    yes|  no|unknown|  5|  may|     380|       1|   -1|       0| unknown| no|
+| 58|     retired| married|  primary|     no|    121|    yes|  no|unknown|  5|  may|      50|       1|   -1|       0| unknown| no|
+| 43|  technician|  single|secondary|     no|    593|    yes|  no|unknown|  5|  may|      55|       1|   -1|       0| unknown| no|
++---+------------+--------+---------+-------+-------+-------+----+-------+---+-----+--------+--------+-----+--------+--------+---+
+only showing top 10 rows
 
 change1: org.apache.spark.sql.DataFrame = [age: int, job: string ... 15 more fields]
 change2: org.apache.spark.sql.DataFrame = [age: int, job: string ... 15 more fields]
 newcolumn: org.apache.spark.sql.DataFrame = [age: int, job: string ... 15 more fields]
-+---+----------+-------+---------+-------+-------+-------+----+-------+---+-----+--------+--------+-----+--------+--------+---+
-|age|       job|marital|education|default|balance|housing|loan|contact|day|month|duration|campaign|pdays|previous|poutcome|  y|
-+---+----------+-------+---------+-------+-------+-------+----+-------+---+-----+--------+--------+-----+--------+--------+---+
-| 58|management|married| tertiary|     no|   2143|    yes|  no|unknown|  5|  may|     261|       1|   -1|       0| unknown|  2|
-+---+----------+-------+---------+-------+-------+-------+----+-------+---+-----+--------+--------+-----+--------+--------+---+
-only showing top 1 row
++---+------------+--------+---------+-------+-------+-------+----+-------+---+-----+--------+--------+-----+--------+--------+---+
+|age|         job| marital|education|default|balance|housing|loan|contact|day|month|duration|campaign|pdays|previous|poutcome|  y|
++---+------------+--------+---------+-------+-------+-------+----+-------+---+-----+--------+--------+-----+--------+--------+---+
+| 58|  management| married| tertiary|     no|   2143|    yes|  no|unknown|  5|  may|     261|       1|   -1|       0| unknown|  2|
+| 44|  technician|  single|secondary|     no|     29|    yes|  no|unknown|  5|  may|     151|       1|   -1|       0| unknown|  2|
+| 33|entrepreneur| married|secondary|     no|      2|    yes| yes|unknown|  5|  may|      76|       1|   -1|       0| unknown|  2|
+| 47| blue-collar| married|  unknown|     no|   1506|    yes|  no|unknown|  5|  may|      92|       1|   -1|       0| unknown|  2|
+| 33|     unknown|  single|  unknown|     no|      1|     no|  no|unknown|  5|  may|     198|       1|   -1|       0| unknown|  2|
+| 35|  management| married| tertiary|     no|    231|    yes|  no|unknown|  5|  may|     139|       1|   -1|       0| unknown|  2|
+| 28|  management|  single| tertiary|     no|    447|    yes| yes|unknown|  5|  may|     217|       1|   -1|       0| unknown|  2|
+| 42|entrepreneur|divorced| tertiary|    yes|      2|    yes|  no|unknown|  5|  may|     380|       1|   -1|       0| unknown|  2|
+| 58|     retired| married|  primary|     no|    121|    yes|  no|unknown|  5|  may|      50|       1|   -1|       0| unknown|  2|
+| 43|  technician|  single|secondary|     no|    593|    yes|  no|unknown|  5|  may|      55|       1|   -1|       0| unknown|  2|
++---+------------+--------+---------+-------+-------+-------+----+-------+---+-----+--------+--------+-----+--------+--------+---+
+only showing top 10 rows
 
-assembler: org.apache.spark.ml.feature.VectorAssembler = vecAssembler_04de40b5e58d
-fea: org.apache.spark.sql.DataFrame = [age: int, job: string ... 16 more fields]
-+---+----------+-------+---------+-------+-------+-------+----+-------+---+-----+--------+--------+-----+--------+--------+---+--------------------+
-|age|       job|marital|education|default|balance|housing|loan|contact|day|month|duration|campaign|pdays|previous|poutcome|  y|            features|
-+---+----------+-------+---------+-------+-------+-------+----+-------+---+-----+--------+--------+-----+--------+--------+---+--------------------+
-| 58|management|married| tertiary|     no|   2143|    yes|  no|unknown|  5|  may|     261|       1|   -1|       0| unknown|  2|[2143.0,5.0,261.0...|
-+---+----------+-------+---------+-------+-------+-------+----+-------+---+-----+--------+--------+-----+--------+--------+---+--------------------+
-only showing top 1 row
+assembler: org.apache.spark.ml.feature.VectorAssembler = vecAssembler_9f580bee940d
+ft: org.apache.spark.sql.DataFrame = [age: int, job: string ... 16 more fields]
++---+------------+--------+---------+-------+-------+-------+----+-------+---+-----+--------+--------+-----+--------+--------+---+--------------------+
+|age|         job| marital|education|default|balance|housing|loan|contact|day|month|duration|campaign|pdays|previous|poutcome|  y|            features|
++---+------------+--------+---------+-------+-------+-------+----+-------+---+-----+--------+--------+-----+--------+--------+---+--------------------+
+| 58|  management| married| tertiary|     no|   2143|    yes|  no|unknown|  5|  may|     261|       1|   -1|       0| unknown|  2|[2143.0,5.0,261.0...|
+| 44|  technician|  single|secondary|     no|     29|    yes|  no|unknown|  5|  may|     151|       1|   -1|       0| unknown|  2|[29.0,5.0,151.0,-...|
+| 33|entrepreneur| married|secondary|     no|      2|    yes| yes|unknown|  5|  may|      76|       1|   -1|       0| unknown|  2|[2.0,5.0,76.0,-1....|
+| 47| blue-collar| married|  unknown|     no|   1506|    yes|  no|unknown|  5|  may|      92|       1|   -1|       0| unknown|  2|[1506.0,5.0,92.0,...|
+| 33|     unknown|  single|  unknown|     no|      1|     no|  no|unknown|  5|  may|     198|       1|   -1|       0| unknown|  2|[1.0,5.0,198.0,-1...|
+| 35|  management| married| tertiary|     no|    231|    yes|  no|unknown|  5|  may|     139|       1|   -1|       0| unknown|  2|[231.0,5.0,139.0,...|
+| 28|  management|  single| tertiary|     no|    447|    yes| yes|unknown|  5|  may|     217|       1|   -1|       0| unknown|  2|[447.0,5.0,217.0,...|
+| 42|entrepreneur|divorced| tertiary|    yes|      2|    yes|  no|unknown|  5|  may|     380|       1|   -1|       0| unknown|  2|[2.0,5.0,380.0,-1...|
+| 58|     retired| married|  primary|     no|    121|    yes|  no|unknown|  5|  may|      50|       1|   -1|       0| unknown|  2|[121.0,5.0,50.0,-...|
+| 43|  technician|  single|secondary|     no|    593|    yes|  no|unknown|  5|  may|      55|       1|   -1|       0| unknown|  2|[593.0,5.0,55.0,-...|
++---+------------+--------+---------+-------+-------+-------+----+-------+---+-----+--------+--------+-----+--------+--------+---+--------------------+
+only showing top 10 rows
 
 cambio: org.apache.spark.sql.DataFrame = [age: int, job: string ... 16 more fields]
 feat: org.apache.spark.sql.DataFrame = [label: int, features: vector]
@@ -240,130 +244,136 @@ feat: org.apache.spark.sql.DataFrame = [label: int, features: vector]
 |label|            features|
 +-----+--------------------+
 |    2|[2143.0,5.0,261.0...|
+|    2|[29.0,5.0,151.0,-...|
+|    2|[2.0,5.0,76.0,-1....|
+|    2|[1506.0,5.0,92.0,...|
+|    2|[1.0,5.0,198.0,-1...|
+|    2|[231.0,5.0,139.0,...|
+|    2|[447.0,5.0,217.0,...|
+|    2|[2.0,5.0,380.0,-1...|
+|    2|[121.0,5.0,50.0,-...|
+|    2|[593.0,5.0,55.0,-...|
 +-----+--------------------+
-only showing top 1 row
+only showing top 10 rows
 
-labelIndexer: org.apache.spark.ml.feature.StringIndexerModel = strIdx_0e9c6622932f
-featureIndexer: org.apache.spark.ml.feature.VectorIndexer = vecIdx_abed9e5e23e1
+cambio1: org.apache.spark.sql.DataFrame = [label: int, features: vector]
+cambio2: org.apache.spark.sql.DataFrame = [label: int, features: vector]
+cambio3: org.apache.spark.sql.DataFrame = [label: int, features: vector]
+linsvc: org.apache.spark.ml.classification.LinearSVC = linearsvc_f8a705be6598
+linsvcModel: org.apache.spark.ml.classification.LinearSVCModel = linearsvc_f8a705be6598
+labelIndexer: org.apache.spark.ml.feature.StringIndexerModel = strIdx_5c691827940a
+featureIndexer: org.apache.spark.ml.feature.VectorIndexer = vecIdx_8d3b23bf5b8e
 trainingData: org.apache.spark.sql.Dataset[org.apache.spark.sql.Row] = [label: int, features: vector]
 testData: org.apache.spark.sql.Dataset[org.apache.spark.sql.Row] = [label: int, features: vector]
-dt: org.apache.spark.ml.classification.DecisionTreeClassifier = dtc_01bd5865886e
-labelConverter: org.apache.spark.ml.feature.IndexToString = idxToStr_d0d605e90c9d
-pipeline: org.apache.spark.ml.Pipeline = pipeline_dbf9c9fe493c
-model: org.apache.spark.ml.PipelineModel = pipeline_dbf9c9fe493c
+dt: org.apache.spark.ml.classification.DecisionTreeClassifier = dtc_08e35ad4bfa0
+labelConverter: org.apache.spark.ml.feature.IndexToString = idxToStr_5404bdb77934
+pipeline: org.apache.spark.ml.Pipeline = pipeline_7b361a9d62e7
+model: org.apache.spark.ml.PipelineModel = pipeline_7b361a9d62e7
 predictions: org.apache.spark.sql.DataFrame = [label: int, features: vector ... 6 more fields]
 +--------------+-----+--------------------+
 |predictedLabel|label|            features|
 +--------------+-----+--------------------+
-|             2|    1|[-1944.0,7.0,623....|
 |             2|    1|[-1206.0,15.0,382...|
-|             2|    1|[-970.0,4.0,489.0...|
-|             2|    1|[-930.0,14.0,786....|
 |             2|    1|[-770.0,18.0,618....|
+|             1|    1|[-725.0,27.0,1205...|
+|             2|    1|[-639.0,15.0,585....|
+|             1|    1|[-546.0,25.0,1152...|
+|             1|    1|[-454.0,18.0,801....|
+|             2|    1|[-449.0,14.0,691....|
+|             2|    1|[-416.0,16.0,767....|
+|             2|    1|[-413.0,27.0,422....|
+|             2|    1|[-407.0,12.0,829....|
 +--------------+-----+--------------------+
-only showing top 5 rows
+only showing top 10 rows
 
-evaluator: org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator = mcEval_eaf3da357f65
-accuracy: Double = 0.8878435984124651
-treeModel: org.apache.spark.ml.classification.DecisionTreeClassificationModel = DecisionTreeClassificationModel (uid=dtc_01bd5865886e) of depth 5 with 33 nodes
-logistic: org.apache.spark.ml.classification.LogisticRegression = logreg_b36cb90d6709
-19/12/09 20:13:48 WARN BLAS: Failed to load implementation from: com.github.fommil.netlib.NativeSystemBLAS
-19/12/09 20:13:48 WARN BLAS: Failed to load implementation from: com.github.fommil.netlib.NativeRefBLAS
-logisticModel: org.apache.spark.ml.classification.LogisticRegressionModel = LogisticRegressionModel: uid = logreg_b36cb90d6709, numClasses = 3, numFeatures = 5
+evaluator: org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator = mcEval_f7d5f75f148a
+accuracy: Double = 0.8948476454293629
+treeModel: org.apache.spark.ml.classification.DecisionTreeClassificationModel = DecisionTreeClassificationModel (uid=dtc_08e35ad4bfa0) of depth 5 with 25 nodes
+Learned classification tree model:
+ DecisionTreeClassificationModel (uid=dtc_08e35ad4bfa0) of depth 5 with 25 nodes
+  If (feature 2 <= 478.5)
+   If (feature 3 <= 9.5)
+    Predict: 0.0
+   Else (feature 3 > 9.5)
+    If (feature 2 <= 158.5)
+     Predict: 0.0
+    Else (feature 2 > 158.5)
+     If (feature 3 <= 191.5)
+      If (feature 3 <= 95.5)
+       Predict: 1.0
+      Else (feature 3 > 95.5)
+       Predict: 0.0
+     Else (feature 3 > 191.5)
+      Predict: 0.0
+  Else (feature 2 > 478.5)
+   If (feature 2 <= 659.5)
+    If (feature 3 <= 8.5)
+     Predict: 0.0
+    Else (feature 3 > 8.5)
+     If (feature 3 <= 191.5)
+      Predict: 1.0
+     Else (feature 3 > 191.5)
+      If (feature 4 <= 12.5)
+       Predict: 0.0
+      Else (feature 4 > 12.5)
+       Predict: 1.0
+   Else (feature 2 > 659.5)
+    If (feature 2 <= 856.0)
+     If (feature 3 <= 0.0)
+      If (feature 1 <= 29.5)
+       Predict: 0.0
+      Else (feature 1 > 29.5)
+       Predict: 1.0
+     Else (feature 3 > 0.0)
+      Predict: 1.0
+    Else (feature 2 > 856.0)
+     Predict: 1.0
+
+logistic: org.apache.spark.ml.classification.LogisticRegression = logreg_9809f7eca1dc
+logisticModel: org.apache.spark.ml.classification.LogisticRegressionModel = LogisticRegressionModel: uid = logreg_9809f7eca1dc, numClasses = 3, numFeatures = 5
 org.apache.spark.SparkException: Multinomial models contain a matrix of coefficients, use coefficientMatrix instead.
   at org.apache.spark.ml.classification.LogisticRegressionModel.coefficients(LogisticRegression.scala:955)
-  ... 79 elided
-logisticMult: org.apache.spark.ml.classification.LogisticRegression = logreg_a5ea03612448
-logisticMultModel: org.apache.spark.ml.classification.LogisticRegressionModel = LogisticRegressionModel: uid = logreg_a5ea03612448, numClasses = 3, numFeatures = 5
+  ... 94 elided
+Proyecto.scala:167: error: not found: type LogisticReg
+       val logisticMult = new LogisticReg
+                              ^
+Proyecto.scala:168: error: not found: value ression
+       ression().setMaxIter(5).setRegParam(0.2).setElasticNetParam(0.8).setFamily("multinomial")
+       ^
+logisticMultModel: org.apache.spark.ml.classification.LogisticRegressionModel = LogisticRegressionModel: uid = logreg_05d7fbbe8ab8, numClasses = 3, numFeatures = 5
 split: Array[org.apache.spark.sql.Dataset[org.apache.spark.sql.Row]] = Array([label: int, features: vector], [label: int, features: vector])
 train: org.apache.spark.sql.Dataset[org.apache.spark.sql.Row] = [label: int, features: vector]
 test: org.apache.spark.sql.Dataset[org.apache.spark.sql.Row] = [label: int, features: vector]
-layers: Array[Int] = Array(5, 2, 2, 4)
-trainer: org.apache.spark.ml.classification.MultilayerPerceptronClassifier = mlpc_295643f36faf
-model: org.apache.spark.ml.classification.MultilayerPerceptronClassificationModel = mlpc_295643f36faf
+layers: Array[Int] = Array(5, 4, 5, 4)
+trainer: org.apache.spark.ml.classification.MultilayerPerceptronClassifier = mlpc_a32c3f802b2f
+model: org.apache.spark.ml.classification.MultilayerPerceptronClassificationModel = mlpc_a32c3f802b2f
 result: org.apache.spark.sql.DataFrame = [label: int, features: vector ... 3 more fields]
 predictionAndLabels: org.apache.spark.sql.DataFrame = [prediction: double, label: int]
-evaluator: org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator = mcEval_f2c696e7b419
-c1: org.apache.spark.sql.DataFrame = [label: int, features: vector]
-c2: org.apache.spark.sql.DataFrame = [label: int, features: vector]
-c3: org.apache.spark.sql.DataFrame = [label: int, features: vector]
-linsvc: org.apache.spark.ml.classification.LinearSVC = linearsvc_c7fbf63a469c
-linsvcModel: org.apache.spark.ml.classification.LinearSVCModel = linearsvc_c7fbf63a469c
+evaluator: org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator = mcEval_7b04bd28d7ec
+
+
+/////////////////////////////////////////////////////////////////////
+SUPORT VECTOR MACHINE
+/////////////////////////////////////////////////////////////////////
+Coefficients: [-0.0,0.008569399668559616,-6.313630373326434E-4,-1.4295640198223574E-4,-0.012918141151966479] Intercept: 1.093914190592112
 
 
 /////////////////////////////////////////////////////////////////////
 RESULTADOS DECISION TREE
 /////////////////////////////////////////////////////////////////////
-Test Error = 0.11215640158753493
-Learned classification tree model:
- DecisionTreeClassificationModel (uid=dtc_01bd5865886e) of depth 5 with 33 nodes
-  If (feature 2 <= 559.5)
-   If (feature 3 <= 9.5)
-    Predict: 0.0
-   Else (feature 3 > 9.5)
-    If (feature 2 <= 174.5)
-     Predict: 0.0
-    Else (feature 2 > 174.5)
-     If (feature 3 <= 187.5)
-      If (feature 3 <= 92.5)
-       Predict: 1.0
-      Else (feature 3 > 92.5)
-       Predict: 0.0
-     Else (feature 3 > 187.5)
-      If (feature 3 <= 519.5)
-       Predict: 0.0
-      Else (feature 3 > 519.5)
-       Predict: 1.0
-  Else (feature 2 > 559.5)
-   If (feature 2 <= 879.0)
-    If (feature 3 <= 0.0)
-     If (feature 2 <= 669.5)
-      Predict: 0.0
-     Else (feature 2 > 669.5)
-      If (feature 1 <= 29.5)
-       Predict: 0.0
-      Else (feature 1 > 29.5)
-       Predict: 1.0
-    Else (feature 3 > 0.0)
-     If (feature 1 <= 20.5)
-      If (feature 1 <= 16.5)
-       Predict: 1.0
-      Else (feature 1 > 16.5)
-       Predict: 0.0
-     Else (feature 1 > 20.5)
-      If (feature 0 <= -82.5)
-       Predict: 0.0
-      Else (feature 0 > -82.5)
-       Predict: 1.0
-   Else (feature 2 > 879.0)
-    If (feature 3 <= 272.5)
-     Predict: 1.0
-    Else (feature 3 > 272.5)
-     If (feature 4 <= 3.5)
-      If (feature 0 <= 71.5)
-       Predict: 1.0
-      Else (feature 0 > 71.5)
-       Predict: 0.0
-     Else (feature 4 > 3.5)
-      Predict: 0.0
-
+Test Error = 0.1051523545706371
+accuracy: Double = 0.036454293628808865
 
 
 /////////////////////////////////////////////////////////////////////
 RESULTADOS LOGISTIC REGRESION
 /////////////////////////////////////////////////////////////////////
 Multinomial coefficients: 3 x 5 CSCMatrix
-Multinomial intercepts: [-7.827431229384973,2.903059293515478,4.924371935869495]
+Multinomial intercepts: [-6.832552186677845,2.4056393781318075,4.426912808546038]
 
 
 /////////////////////////////////////////////////////////////////////
 RESULTADOS MULTILAYER PERCEPTRON
 /////////////////////////////////////////////////////////////////////
-Test set accuracy = 0.8848956335944776
-
-
-/////////////////////////////////////////////////////////////////////
-SUPORT VECTOR MACHINE
-/////////////////////////////////////////////////////////////////////
-Coefficients: [2.125897501491213E-6,0.013517727458849872,-7.514021888017163E-4,-2.7022337506408964E-4,-0.011177544540215354] Intercept: 1.084924165339881
+Test set accuracy = 0.8874070835155226
 ```
