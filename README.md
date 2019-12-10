@@ -22,7 +22,7 @@ After all objects are assigned, the positions of the k centroids are recalculate
 Steps 2 and 3 are repeated until the positions of the centroids no longer move.
 
 
-
+CODE
 
 ```scala
 //Las fuente de datos se encuentra en el repositorio: https://github.com/jcromerohdz/BigData/blob/master/Spark_clustering/Wholesalecustomersdata.csv
