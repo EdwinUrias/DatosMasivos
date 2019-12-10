@@ -70,6 +70,9 @@ println(s"Within Set Sum of Squared Errors = $WSSSE")
 println("Cluster Centers: ")
 model.clusterCenters.foreach(println)
 ```
+
+RESULTADOS
+
 scala> :load Evaluacion.scala
 
 Loading Evaluacion.scala...
