@@ -1,5 +1,5 @@
 # DatosMasivos
-K-MEANS
+## K-MEANS
 
 Definition - What does K-Means Clustering mean?
 
@@ -22,7 +22,7 @@ After all objects are assigned, the positions of the k centroids are recalculate
 Steps 2 and 3 are repeated until the positions of the centroids no longer move.
 
 
-
+## CODE
 
 ```scala
 //Las fuente de datos se encuentra en el repositorio: https://github.com/jcromerohdz/BigData/blob/master/Spark_clustering/Wholesalecustomersdata.csv
@@ -71,8 +71,8 @@ println("Cluster Centers: ")
 model.clusterCenters.foreach(println)
 ```sh
 
-RESULTADOS
-
+## RESULTADOS
+```
 scala> :load Evaluacion.scala
 
 Loading Evaluacion.scala...
@@ -124,3 +124,4 @@ Cluster Centers:
 [9928.18918918919,21513.081081081084,30993.486486486487,2960.4324324324325,13996.594594594595,3772.3243243243246]
 
 [35273.854838709674,5213.919354838709,5826.096774193548,6027.6612903225805,1006.9193548387096,2237.6290322580644]
+```
