@@ -69,7 +69,7 @@ println(s"Within Set Sum of Squared Errors = $WSSSE")
 //12. ¿Cuáles son los nombres de las columnas?
 println("Cluster Centers: ")
 model.clusterCenters.foreach(println)
-```
+```sh
 
 RESULTADOS
 
