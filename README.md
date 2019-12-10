@@ -11,6 +11,16 @@ The clusters are then positioned as points and all observations or data points a
 
 K-means clustering has uses in search engines, market segmentation, statistics and even astronomy.
 
+The algorithm:
+
+K points are placed into the object data space representing the initial group of centroids.
+
+Each object or data point is assigned into the closest k.
+
+After all objects are assigned, the positions of the k centroids are recalculated.
+
+Steps 2 and 3 are repeated until the positions of the centroids no longer move.
+
 
 
 
