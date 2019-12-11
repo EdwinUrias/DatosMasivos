@@ -49,16 +49,22 @@ feat.show(10)
 val cambio1 = feat.withColumn("label",when(col("label").equalTo("1"),0).otherwise(col("label")))
 val cambio2 = cambio1.withColumn("label",when(col("label").equalTo("2"),1).otherwise(col("label")))
 val cambio3 = cambio2.withColumn("label",'label.cast("Int"))
-val linsvc = new LinearSVC().setMaxIter(10).setRegParam(0.2)
+val linsvc = new LinearSVC().setMaxIter(10).setRegParam(0.1)
 // FIT DEL MODELO
 val linsvcModel = linsvc.fit(cambio3)
+println(s"")
+println(s"")
+println(s"/////////////////////////////////////////////////////////////////////")
+println(s"SUPORT VECTOR MACHINE")
+println(s"/////////////////////////////////////////////////////////////////////")
+println(s"Coefficients: ${linsvcModel.coefficients} Intercept: ${linsvcModel.intercept}")
 //////////////////////////////////////////////////////DECISION TREE////////////////////////////////////////////////////////////////////////////
 //DECISION TREE
 val labelIndexer = new StringIndexer().setInputCol("label").setOutputCol("indexedLabel").fit(feat)
 //FEATURES CON MAS DE 4 VALORES DISTINTIVOS TOMADOS COMO CONTINUOS
 val featureIndexer = new VectorIndexer().setInputCol("features").setOutputCol("indexedFeatures").setMaxCategories(4) 
 //80% DE DATOS PARA ENTRETAR Y LOS OTROS 20% PARA PRUEVAS
-val Array(trainingData, testData) = feat.randomSplit(Array(0.8, 0.2))
+val Array(trainingData, testData) = feat.randomSplit(Array(0.7, 0.3))
 //CREA EL OBJETO DECISION TREE
 val dt = new DecisionTreeClassifier().setLabelCol("indexedLabel").setFeaturesCol("indexedFeatures")
 //RAMA PARA PREDICCION
@@ -72,20 +78,17 @@ val predictions = model.transform(testData)
 //DESPLEGAMOS LAS PREDICCIONES
 predictions.select("predictedLabel", "label", "features").show(10)
 //EVALUACION DE LA EXACTITUD
+println(s"")
+println(s"")
+println(s"/////////////////////////////////////////////////////////////////////")
+println(s"RESULTADOS DECISION TREE")
+println(s"/////////////////////////////////////////////////////////////////////")
 val evaluator = new MulticlassClassificationEvaluator().setLabelCol("indexedLabel").setPredictionCol("prediction").setMetricName("accuracy")
 val accuracy = evaluator.evaluate(predictions)
+println(s"Test Error = ${(1.0 - accuracy)}")
 val treeModel = model.stages(2).asInstanceOf[DecisionTreeClassificationModel]
 println(s"Learned classification tree model:\n ${treeModel.toDebugString}")
-///////////////////////////////////////////////////////LOGISTIC REGRESION//////////////////////////////////////////////////////////////////////////////////////
-//Logistic Regresion
-val logistic = new LogisticRegression().setMaxIter(5).setRegParam(0.2).setElasticNetParam(0.8)
-// Fit del modelo
-val logisticModel = logistic.fit(feat)
-//Impresion de los coegicientes y de la intercepcion
-println(s"Coefficients: ${logisticModel.coefficients} Intercept: ${logisticModel.intercept}")
-val logisticMult = new LogisticReg
-ression().setMaxIter(5).setRegParam(0.2).setElasticNetParam(0.8).setFamily("multinomial")
-val logisticMultModel = logisticMult.fit(feat)
+
 //////////////////////////////////////////////////////MULTILAYER PERCEPTRON///////////////////////////////////////////////////////////////////////////////////
 //MULTILAYER PERCEPTRON DIVIDIMOS LOS DATOS EN PARTES DE 80 Y 20 PORCIENTO RESPECTIVAMENTE
 val split = feat.randomSplit(Array(0.8, 0.2), seed = 1234L)
@@ -99,37 +102,12 @@ val trainer = new MultilayerPerceptronClassifier().setLayers(layers).setBlockSiz
 //ENTRENAMOS EL MODELO
 val model = trainer.fit(train)
 //IMPRIMIMOS LA EXACTITUD
-val result = model.transform(test)
-val predictionAndLabels = result.select("prediction", "label")
-val evaluator = new MulticlassClassificationEvaluator().setMetricName("accuracy")
-//////////////////////////////////////////////RESULTADOS/////////////////////////////////////////////////////////////////////////
-//
-println(s"")
-println(s"")
-println(s"/////////////////////////////////////////////////////////////////////")
-println(s"SUPORT VECTOR MACHINE")
-println(s"/////////////////////////////////////////////////////////////////////")
-println(s"Coefficients: ${linsvcModel.coefficients} Intercept: ${linsvcModel.intercept}")
-//
-println(s"")
-println(s"")
-println(s"/////////////////////////////////////////////////////////////////////")
-println(s"RESULTADOS DECISION TREE")
-println(s"/////////////////////////////////////////////////////////////////////")
-println(s"Test Error = ${(1.0 - accuracy)}")
-val accuracy = evaluator.evaluate(predictions)
-//
-println(s"")
-println(s"")
-println(s"/////////////////////////////////////////////////////////////////////")
-println(s"RESULTADOS LOGISTIC REGRESION")
-println(s"/////////////////////////////////////////////////////////////////////")
-println(s"Multinomial coefficients: ${logisticMultModel.coefficientMatrix}")
-println(s"Multinomial intercepts: ${logisticMultModel.interceptVector}")
-//
 println(s"")
 println(s"")
 println(s"/////////////////////////////////////////////////////////////////////")
 println(s"RESULTADOS MULTILAYER PERCEPTRON")
 println(s"/////////////////////////////////////////////////////////////////////")
+val result = model.transform(test)
+val predictionAndLabels = result.select("prediction", "label")
+val evaluator = new MulticlassClassificationEvaluator().setMetricName("accuracy")
 println(s"Test set accuracy = ${evaluator.evaluate(predictionAndLabels)}")
